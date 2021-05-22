@@ -1,7 +1,11 @@
-const express = require('express')
+console.clear();
+
+var express = require('express')
 var bodyParser = require('body-parser');
-const app = express()
-const port = 8080
+var app = express()
+
+//my custom opened port for my network
+var port = 4444
 
 app.use(bodyParser.json())
 
