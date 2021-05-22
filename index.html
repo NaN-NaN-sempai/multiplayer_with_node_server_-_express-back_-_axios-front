@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+        }
+        body {
+            background: royalblue;
+        }
+    </style>
+</head>
+<body>
+    
+</body>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+
+
+
+    var rn = (n) => Math.floor(Math.random() * n)
+    var genrc = () => {
+        return {r: rn(255), g: rn(255), b: rn(255), a: Math.random()}
+    }
+    class player {
+        constructor(){
+            this.color = genrc();
+            this.htmlColor = "rgba("+this.color.r+", "+this.color.g+", "+this.color.b+", "+Math.random()*2+")";
+
+            this.pos = {x: 0, y: 0}
+
+            this.size = 50;
+            this.elem;
+        }
+    }
+
+    var p1 = new player()
+
+    function serverGet(url, method, callback, params = null) {
+        var obj;
+        try {   
+        obj = new XMLHttpRequest();  
+        } catch(e){   
+        try {     
+            obj = new ActiveXObject("Msxml2.XMLHTTP");     
+        } catch(e) {     
+            try { 
+            obj = new ActiveXObject("Microsoft.XMLHTTP");       
+            } catch(e) {       
+            alert("Your browser does not support Ajax.");       
+            return false;       
+            }     
+        }   
+        }
+        obj.onreadystatechange = function() {
+        if(obj.readyState == 4) {
+            callback(obj);
+        } 
+        }
+        obj.open(method, url, true);
+        obj.send(params);
+        return obj; 
+    }
+    serverGet('/hee', 'get',  function(obj) { console.log(obj.responseText)})
+
+    axios({
+    method: 'post',
+    url: '/hu',
+    data: {
+        tet: 'Finn',
+        lastName: 'Williams'
+    }
+    });
+
+    var createEntity = () => {
+        var htmlEntity = document.createElement("div");
+            htmlEntity.style.background = p1.htmlColor;
+            htmlEntity.style.width = htmlEntity.style.height = p1.size + "px"
+            htmlEntity.style.position = "absolute";
+            htmlEntity.style.left = p1.pos.x;
+            htmlEntity.style.bottom = p1.pos.y; 
+            p1.elem = htmlEntity;
+        document.body.append(htmlEntity)
+    }
+    createEntity()
+
+    
+    window.addEventListener("keypress", (e)=>{
+        if(["a", "A"].includes(e.key)){
+            p1.pos.x--;
+            p1.elem.style.left = p1.pos.x + "px"
+        }
+        if(["d", "D"].includes(e.key)){
+            p1.pos.x++;
+            p1.elem.style.left = p1.pos.x + "px"
+        }
+        if(["s", "S"].includes(e.key)){
+            p1.pos.y--;
+            p1.elem.style.bottom = p1.pos.y + "px"
+        }
+        if(["w", "W"].includes(e.key)){
+            p1.pos.y++;
+            p1.elem.style.bottom = p1.pos.y + "px"
+        }
+    });
+
+</script>
+</html>
