@@ -14,29 +14,30 @@ app.get('/', function(req, res) {
     res.sendfile("index.html");
 });
 
+var serverData = {
+    serverFPS: 1,
+    players: []
+}
 
-var cnt = 0;
-        
-//no frontend, pra receber dados do backend
-//serverGet('/hee', 'get',  function(obj) { console.log(obj.responseText)})
-app.get('/hee', function(req, res){
-    res.json(cnt);
+app.get('/serverData', function(req, res){
+    res.json(serverData);
+    res.end();
 });
 
-//no frontend, para enviar dados ao backend zx
-/*axios({
-    method: 'post',
-    url: '/hu',
-    data: {
-        tet: 'Finn',
-        lastName: 'Williams'
-    }
-}); */
-app.post('/hu', (req, res)=> {
-    // req.body.fileName
-    cnt++;
-    console.log(req.body);
-    res.get("/")
+app.post('/newPlayer', (req, res)=> {
+    var newPlayer = req.body.player;
+
+    serverData.players.push(newPlayer)
+    console.log("newPlayer: "+newPlayer.id);
+    res.end();
+})
+
+app.post('/updatePlayer', (req, res)=> {
+    var reqPlayer = req.body.player;
+    serverData.players.find(e=>e.id == reqPlayer.id).pos = reqPlayer.pos;
+
+    console.log("updated: "+reqPlayer.id);
+    res.end()
 })
 
 app.listen(port, () => {

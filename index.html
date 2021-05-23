@@ -19,8 +19,33 @@
 </body>
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 <script>
+    function serverGet(url, method, callback, params = null) {
+        var obj;
+        try {   
+            obj = new XMLHttpRequest();  
+        } catch(e){   
+            try {     
+                obj = new ActiveXObject("Msxml2.XMLHTTP");     
+            } catch(e) {     
+                try { 
+                    obj = new ActiveXObject("Microsoft.XMLHTTP");       
+                } catch(e) {       
+                    alert("Your browser does not support Ajax.");       
+                    return false;       
+                }     
+            }   
+        }
+        obj.onreadystatechange = function() {
+            if(obj.readyState == 4) {
+                callback(obj);
+            } 
+        }
+        obj.open(method, url, true);
+        obj.send(params);
+        return obj; 
+    }
 
-
+    var serverData = {}
 
     var rn = (n) => Math.floor(Math.random() * n)
     var genrc = () => {
@@ -28,85 +53,107 @@
     }
     class player {
         constructor(){
+            this.id = localId = "p_"+serverData.players.length;
+            this.name = prompt("Whats your name?", "player_"+(serverData.players.length.toString().padStart(3, "0")))
+
             this.color = genrc();
             this.htmlColor = "rgba("+this.color.r+", "+this.color.g+", "+this.color.b+", "+Math.random()*2+")";
 
             this.pos = {x: 0, y: 0}
 
-            this.size = 50;
-            this.elem;
+            this.size = 100;
+            
+            var htmlEntity = document.createElement("div");
+                var htmlname = document.createElement("p");
+                    htmlname.innerHTML = this.name;
+                htmlEntity.append(htmlname);
+                htmlEntity.id = this.id
+                htmlEntity.className = "player";
+                htmlEntity.style.background = this.htmlColor;
+                htmlEntity.style.width = htmlEntity.style.height = this.size + "px"
+                htmlEntity.style.position = "absolute";
+                htmlEntity.style.overflow = "hidden";
+                htmlEntity.style.left = this.pos.x;
+                htmlEntity.style.bottom = this.pos.y;  
+                htmlEntity.style.border = "solid 1px red";
+                htmlEntity.style.transition = ".5s"
+            this.elem = htmlEntity.outerHTML;
+
+            axios({
+                method: 'post',
+                url: '/newPlayer',
+                data: {
+                    player: this
+                }
+            });
         }
     }
+    var localPlayer;
+    var localId;
 
-    var p1 = new player()
-
-    function serverGet(url, method, callback, params = null) {
-        var obj;
-        try {   
-        obj = new XMLHttpRequest();  
-        } catch(e){   
-        try {     
-            obj = new ActiveXObject("Msxml2.XMLHTTP");     
-        } catch(e) {     
-            try { 
-            obj = new ActiveXObject("Microsoft.XMLHTTP");       
-            } catch(e) {       
-            alert("Your browser does not support Ajax.");       
-            return false;       
-            }     
-        }   
-        }
-        obj.onreadystatechange = function() {
-        if(obj.readyState == 4) {
-            callback(obj);
-        } 
-        }
-        obj.open(method, url, true);
-        obj.send(params);
-        return obj; 
+    var loadData = (callback = ()=>{}) => {
+        serverGet('/serverData', 'get',  function(obj) {
+            serverData = JSON.parse(obj.response) 
+            callback();
+        })
     }
-    serverGet('/hee', 'get',  function(obj) { console.log(obj.responseText)})
+    var loopInterval;
+    var start = () => {
+        loadData(()=>{
+            localPlayer = new player();
 
-    axios({
-    method: 'post',
-    url: '/hu',
-    data: {
-        tet: 'Finn',
-        lastName: 'Williams'
+            loopInterval = setInterval(loopFunction, 1000 / serverData.serverFPS);
+            startKeyListener();
+        }); 
     }
-    });
+    var loopFunction = () => {
+        loadData(()=>{
+            serverData.players.forEach(e => {
+                if(!document.getElementById(e.id)){
+                    document.body.append(new DOMParser().parseFromString(e.elem, "text/html").body.firstChild);
+                    console.log("loaded");
+                }
+                if(e.id != localPlayer.id){
+                    document.getElementById(e.id).style.left = e.pos.x;
+                    document.getElementById(e.id).style.bottom = e.pos.y;
+                }
+            });
+        }); 
+    }
 
-    var createEntity = () => {
-        var htmlEntity = document.createElement("div");
-            htmlEntity.style.background = p1.htmlColor;
-            htmlEntity.style.width = htmlEntity.style.height = p1.size + "px"
-            htmlEntity.style.position = "absolute";
-            htmlEntity.style.left = p1.pos.x;
-            htmlEntity.style.bottom = p1.pos.y; 
-            p1.elem = htmlEntity;
-        document.body.append(htmlEntity)
-    }
-    createEntity()
+    start();
 
     
-    window.addEventListener("keypress", (e)=>{
-        if(["a", "A"].includes(e.key)){
-            p1.pos.x--;
-            p1.elem.style.left = p1.pos.x + "px"
-        }
-        if(["d", "D"].includes(e.key)){
-            p1.pos.x++;
-            p1.elem.style.left = p1.pos.x + "px"
-        }
-        if(["s", "S"].includes(e.key)){
-            p1.pos.y--;
-            p1.elem.style.bottom = p1.pos.y + "px"
-        }
-        if(["w", "W"].includes(e.key)){
-            p1.pos.y++;
-            p1.elem.style.bottom = p1.pos.y + "px"
-        }
-    });
+    var startKeyListener = () => {
+        window.addEventListener("keyup", (e)=>{
+            var getLocalPlayer = document.getElementById(localPlayer.id)
+            if(e.key.toLowerCase() == "a"){
+                localPlayer.pos.x -= localPlayer.size;
+                getLocalPlayer.style.left = localPlayer.pos.x + "px"
+            }
+            if(e.key.toLowerCase() == "d"){
+                localPlayer.pos.x += localPlayer.size;
+                getLocalPlayer.style.left = localPlayer.pos.x + "px"
+            }
+            if(e.key.toLowerCase() == "s"){
+                localPlayer.pos.y -= localPlayer.size;
+                getLocalPlayer.style.bottom = localPlayer.pos.y + "px"
+            }
+            if(e.key.toLowerCase() == "w"){
+                localPlayer.pos.y += localPlayer.size;
+                getLocalPlayer.style.bottom = localPlayer.pos.y + "px"
+            }
+
+            
+            axios({
+                method: 'post',
+                url: '/updatePlayer',
+                data: {
+                    player: localPlayer
+                }
+            })
+        });
+    }
 
 </script>
 </html>
