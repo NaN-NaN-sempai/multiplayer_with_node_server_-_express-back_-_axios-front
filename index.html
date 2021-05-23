@@ -4,13 +4,17 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Multiplayer with NodeJS server</title>
     <style>
         * {
             margin: 0;
         }
+        p {
+            font-family:Arial, Helvetica, sans-serif;
+        }
         body {
             background: royalblue;
+            overflow: hidden;
         }
     </style>
 </head>
@@ -47,14 +51,16 @@
 
     var serverData = {}
 
-    var rn = (n) => Math.floor(Math.random() * n)
+    var rn = (n) => Math.floor(Math.random() * (n + 1))
     var genrc = () => {
         return {r: rn(255), g: rn(255), b: rn(255), a: Math.random()}
     }
     class player {
         constructor(){
             this.id = localId = "p_"+serverData.players.length;
-            this.name = prompt("Whats your name?", "player_"+(serverData.players.length.toString().padStart(3, "0")))
+            while(!(this.name = prompt("Whats your name?", "player_"+(serverData.players.length.toString().padStart(3, "0"))))){}
+
+            this.online = true;
 
             this.color = genrc();
             this.htmlColor = "rgba("+this.color.r+", "+this.color.g+", "+this.color.b+", "+Math.random()*2+")";
@@ -64,10 +70,21 @@
             this.size = 100;
             
             var htmlEntity = document.createElement("div");
+                var islocalplayer = document.createElement("p");
+                    islocalplayer.className = "placeIdentity"
+                    islocalplayer.innerHTML = "";
+                    islocalplayer.style.textAlign = "center";
+                    islocalplayer.style.color = "yellow";
+                htmlEntity.append(islocalplayer);
+
+                htmlEntity.append(document.createElement("br"));
+
                 var htmlname = document.createElement("p");
                     htmlname.innerHTML = this.name;
+                    htmlname.style.textAlign = "center";
                 htmlEntity.append(htmlname);
-                htmlEntity.id = this.id
+
+                htmlEntity.id = this.id;
                 htmlEntity.className = "player";
                 htmlEntity.style.background = this.htmlColor;
                 htmlEntity.style.width = htmlEntity.style.height = this.size + "px"
@@ -75,7 +92,7 @@
                 htmlEntity.style.overflow = "hidden";
                 htmlEntity.style.left = this.pos.x;
                 htmlEntity.style.bottom = this.pos.y;  
-                htmlEntity.style.border = "solid 1px red";
+                htmlEntity.style.border = (["dotted", "solid", "dashed", "double", "groove", "ridge", "inset", "outset"][rn(7)])+" 2px "+"rgba("+genrc().r+", "+genrc().g+", "+genrc().b+", "+Math.random()*2+")";
                 htmlEntity.style.transition = ".5s"
             this.elem = htmlEntity.outerHTML;
 
@@ -102,6 +119,7 @@
         loadData(()=>{
             localPlayer = new player();
 
+            loopFunction();
             loopInterval = setInterval(loopFunction, 1000 / serverData.serverFPS);
             startKeyListener();
         }); 
@@ -109,13 +127,22 @@
     var loopFunction = () => {
         loadData(()=>{
             serverData.players.forEach(e => {
-                if(!document.getElementById(e.id)){
-                    document.body.append(new DOMParser().parseFromString(e.elem, "text/html").body.firstChild);
-                    console.log("loaded");
-                }
-                if(e.id != localPlayer.id){
-                    document.getElementById(e.id).style.left = e.pos.x;
-                    document.getElementById(e.id).style.bottom = e.pos.y;
+                if(e.online){
+                    if(!document.getElementById(e.id)){
+                        document.body.append(new DOMParser().parseFromString(e.elem, "text/html").body.firstChild);
+                        console.log("loaded: "+e.id);
+                    }
+                    if(e.id != localPlayer.id){
+                        document.getElementById(e.id).style.left = e.pos.x;
+                        document.getElementById(e.id).style.bottom = e.pos.y;
+                    } else if(document.getElementById(e.id).querySelector(".placeIdentity").innerHTML == ""){
+                        document.getElementById(e.id).querySelector(".placeIdentity").innerHTML = "(Me)"
+                    }
+                } else {
+                    if(document.getElementById(e.id)){
+                        document.getElementById(e.id).remove();
+                        console.log("removed: "+e.id);
+                    }
                 }
             });
         }); 
@@ -128,19 +155,19 @@
         window.addEventListener("keyup", (e)=>{
             var getLocalPlayer = document.getElementById(localPlayer.id)
             if(e.key.toLowerCase() == "a"){
-                localPlayer.pos.x -= localPlayer.size;
+                localPlayer.pos.x = localPlayer.pos.x - localPlayer.size < 0? 0: localPlayer.pos.x - localPlayer.size;
                 getLocalPlayer.style.left = localPlayer.pos.x + "px"
             }
             if(e.key.toLowerCase() == "d"){
-                localPlayer.pos.x += localPlayer.size;
+                localPlayer.pos.x = localPlayer.pos.x + localPlayer.size + localPlayer.size > window.innerWidth? window.innerWidth - localPlayer.size: localPlayer.pos.x + localPlayer.size;
                 getLocalPlayer.style.left = localPlayer.pos.x + "px"
             }
             if(e.key.toLowerCase() == "s"){
-                localPlayer.pos.y -= localPlayer.size;
+                localPlayer.pos.y = localPlayer.pos.y - localPlayer.size < 0? 0: localPlayer.pos.y - localPlayer.size;
                 getLocalPlayer.style.bottom = localPlayer.pos.y + "px"
             }
             if(e.key.toLowerCase() == "w"){
-                localPlayer.pos.y += localPlayer.size;
+                localPlayer.pos.y = localPlayer.pos.y + localPlayer.size + localPlayer.size > window.innerHeight? window.innerHeight - localPlayer.size: localPlayer.pos.y + localPlayer.size;
                 getLocalPlayer.style.bottom = localPlayer.pos.y + "px"
             }
 
@@ -153,7 +180,18 @@
                 }
             })
         });
-    }
+    };
+    window.addEventListener("beforeunload", async function(e){
+        await axios({
+            method: 'post',
+            url: '/removePlayer',
+            data: {
+                player: localPlayer
+            }
+        });
+        
+        e.returnValue = `Are you sure you want to leave?`;
+    });
 
 </script>
 </html>
