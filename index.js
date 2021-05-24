@@ -34,8 +34,8 @@ app.post('/newPlayer', (req, res)=> {
 })
 
 app.post('/updatePlayer', (req, res)=> {
-    var reqPlayer = req.body.player;
-    serverData.players.find(e=>e.id == reqPlayer.id).pos = reqPlayer.pos;
+    var reqPlayer = req.body.player; 
+    serverData.players[serverData.players.find(e=>e.id == reqPlayer.id).index] = reqPlayer;
 
     console.log("updated: "+reqPlayer.id);
     res.end()

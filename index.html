@@ -48,26 +48,42 @@
         obj.send(params);
         return obj; 
     }
-
+    function isEquivalent(a = {}, b = {}) { 
+    var aProps = Object.getOwnPropertyNames(a);
+    var bProps = Object.getOwnPropertyNames(b);
+    if (aProps.length != bProps.length) {
+        return false;
+    }
+    for (var i = 0; i < aProps.length; i++) {
+        var propName = aProps[i];
+        if (a[propName] !== b[propName]) {
+            return false;
+        }
+    }
+    return true;
+}
     var serverData = {}
 
     var rn = (n) => Math.floor(Math.random() * (n + 1))
     var genrc = () => {
-        return {r: rn(255), g: rn(255), b: rn(255), a: Math.random()}
+        return "rgba("+ rn(255)+ ", " + rn(255)+ ", " + rn(255) + ", " + Math.random()+")"
     }
     class player {
         constructor(){
+            this.index = serverData.players.length;
             this.id = localId = "p_"+serverData.players.length;
             while(!(this.name = prompt("Whats your name?", "player_"+(serverData.players.length.toString().padStart(3, "0"))))){}
 
             this.online = true;
 
-            this.color = genrc();
-            this.htmlColor = "rgba("+this.color.r+", "+this.color.g+", "+this.color.b+", "+Math.random()*2+")";
-
-            this.pos = {x: 0, y: 0}
-
             this.size = 100;
+            this.pos = {x: 0, y: 0}
+            this.background = genrc();
+            this.border = (["dotted", "solid", "dashed", "double", "groove", "ridge", "inset", "outset"][rn(7)])+" 2px "+genrc();
+            this.borderRadius = 0;
+            this.variables = {};
+
+
             
             var htmlEntity = document.createElement("div");
                 var islocalplayer = document.createElement("p");
@@ -85,15 +101,14 @@
                 htmlEntity.append(htmlname);
 
                 htmlEntity.id = this.id;
-                htmlEntity.className = "player";
-                htmlEntity.style.background = this.htmlColor;
-                htmlEntity.style.width = htmlEntity.style.height = this.size + "px"
+                htmlEntity.className = "player"; 
                 htmlEntity.style.position = "absolute";
                 htmlEntity.style.overflow = "hidden";
-                htmlEntity.style.left = this.pos.x;
-                htmlEntity.style.bottom = this.pos.y;  
-                htmlEntity.style.border = (["dotted", "solid", "dashed", "double", "groove", "ridge", "inset", "outset"][rn(7)])+" 2px "+"rgba("+genrc().r+", "+genrc().g+", "+genrc().b+", "+Math.random()*2+")";
-                htmlEntity.style.transition = ".5s"
+                htmlEntity.style.transition = ".5s" 
+
+            applyVariables(this);
+            applyValues(htmlEntity, this);
+            
             this.elem = htmlEntity.outerHTML;
 
             axios({
@@ -104,6 +119,27 @@
                 }
             });
         }
+        
+    }
+    var applyVariables = (entity) => {
+            entity.variables = {
+                left: entity.pos.x + "px",
+                bottom: entity.pos.y + "px",
+
+                width: entity.size + "px",
+                height: entity.size + "px",
+
+                background: entity.background,
+                border: entity.border,
+
+                borderRadius: entity.borderRadius + "%",
+            }
+        }
+    var applyValues = (node, entity) => {
+        applyVariables(entity);
+        Object.entries(entity.variables).forEach(e=>{ 
+            node.style[e[0]] = e[1];
+        });
     }
     var localPlayer;
     var localId;
@@ -124,17 +160,34 @@
             startKeyListener();
         }); 
     }
+
+    var oldvalLocalPlayer = {};
+
     var loopFunction = () => {
         loadData(()=>{
+            applyVariables(localPlayer)
+            if(!isEquivalent(localPlayer.variables, oldvalLocalPlayer)){
+                axios({
+                    method: 'post',
+                    url: '/updatePlayer',
+                    data: {
+                        player: localPlayer
+                    }
+                });
+                console.log("Updates");
+                oldvalLocalPlayer = Object.assign({}, localPlayer.variables);
+            }
+
             serverData.players.forEach(e => {
                 if(e.online){
                     if(!document.getElementById(e.id)){
                         document.body.append(new DOMParser().parseFromString(e.elem, "text/html").body.firstChild);
                         console.log("loaded: "+e.id);
                     }
-                    if(e.id != localPlayer.id){
-                        document.getElementById(e.id).style.left = e.pos.x;
-                        document.getElementById(e.id).style.bottom = e.pos.y;
+
+                    if(e.id != localPlayer.id){ 
+                        applyValues(document.getElementById(e.id), e);
+
                     } else if(document.getElementById(e.id).querySelector(".placeIdentity").innerHTML == ""){
                         document.getElementById(e.id).querySelector(".placeIdentity").innerHTML = "(Me)"
                     }
@@ -171,14 +224,23 @@
                 getLocalPlayer.style.bottom = localPlayer.pos.y + "px"
             }
 
+            if(e.key.toLowerCase() == "e"){
+                localPlayer.size += 25;
+                getLocalPlayer.style.width = getLocalPlayer.style.height = localPlayer.size + "px";
+            }
+            if(e.key.toLowerCase() == "q"){
+                localPlayer.size = localPlayer.size - 25 <= 0? 1: localPlayer.size - 25; 
+                getLocalPlayer.style.width = getLocalPlayer.style.height = localPlayer.size + "px";
+            }
             
-            axios({
-                method: 'post',
-                url: '/updatePlayer',
-                data: {
-                    player: localPlayer
-                }
-            })
+            if(e.key.toLowerCase() == "c"){
+                localPlayer.borderRadius = localPlayer.borderRadius - 10 < 0? 0: localPlayer.borderRadius - 10; 
+                getLocalPlayer.style.borderRadius = localPlayer.borderRadius + "%";
+            }
+            if(e.key.toLowerCase() == "z"){
+                localPlayer.borderRadius = localPlayer.borderRadius + 10 > 50? 50: localPlayer.borderRadius + 10; 
+                getLocalPlayer.style.borderRadius = localPlayer.borderRadius + "%";
+            }
         });
     };
     window.addEventListener("beforeunload", async function(e){
